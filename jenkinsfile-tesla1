@@ -1,0 +1,29 @@
+node{
+	def mavenHome = tool name: 'maven3.9.2'
+  stage('1Clone'){
+	//git "https://github.com/nnolipet/maven-web-application.git"
+	//git branch: 'developement', url: 'https://github.com/chipetno/maven-web-application.git'
+    git branch: 'developement', credentialsId: 'chipetno-github-credentials', url: 'https://github.com/chipetno/maven-web-application.git'
+  }
+  stage('2Test+build'){
+	sh "${mavenHome}/bin/mvn clean package"
+  }
+  stage('3sonaqubeCodeQualityAnalysis'){
+    sh "${mavenHome}/bin/mvn sonar:sonar"  
+  }
+  stage('4UploadArtifacts'){
+      sh "${mavenHome}/bin/mvn deploy"
+  }
+  stage('5Deployment'){
+      sh "${mavenHome}/bin/mvn deploy"
+      deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials', path: '', url: 'http://35.175.233.32:8471/')], contextPath: null, war: 'target/*war'
+  }
+  stage('6Notify'){
+    emailext body: '''Hi Team
+
+Build status
+
+Nolichem''', recipientProviders: [contributor(), requestor()], subject: 'build status', to: 'developers, petupetrus730@gmail.com'  
+  }
+
+}
