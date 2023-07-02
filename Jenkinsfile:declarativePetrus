@@ -1,0 +1,69 @@
+pipeline{
+agent any
+//agent terraformNode 
+tools {
+maven "maven3.9.2"
+}
+  //options {}  [discard old builds]
+  //triggers {} [git webHook, poll SCM, build periodically], 
+stages {
+  stage('1clone'){
+    //agent ansibleNode
+  steps{
+sh "echo ready to automate build"
+        git branch: 'developement', credentialsId: 'github-credentials', url: 'https://github.com/chipetno/maven-web-application.git'
+        sh "echo latest application version collected from SCM"
+}
+}
+  stage('2build'){
+steps{
+sh "echo build process starts"
+        sh "mvn clean package"
+        sh "echo build process ends"
+}
+}
+  stage('3review'){
+steps{
+sh "echo codeQuality reviews starts"
+        sh "mvn sonar:sonar" //here pom.xml would have been configured with the right details sonarqube configuration 
+        sh "echo codeQuality review ends"
+}
+}
+  stage('4uploadArtifacts'){
+steps{
+sh "echo upload artifacts nexus artifactory starts"
+        sh "mvn deploy"
+        sh "echo upload artifacts nexus artifactory ends"
+        sh "echo builds and release job completed successfully"
+}
+}
+  stage('5deployment'){
+steps{
+sh "echo deployment to tomcat server using plugin starts"
+       deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials3', path: '', url: 'http://35.175.233.32:8471/')], contextPath: null, war: 'target/*war'
+        sh "echo deployment to production completed successfully"
+}
+}
+}
+post {
+failure {
+emailext body: '''Build faliure
+
+
+Nolichem ''', recipientProviders: [contributor(), developers(), buildUser()], subject: 'Build failed', to: 'developers'
+}
+success {
+emailext body: '''Build successful
+
+
+Nolichem ''', recipientProviders: [contributor(), developers(), buildUser()], subject: 'Build succeeded', to: 'developers'
+}
+always {
+emailext body: '''Build status
+
+
+Nolichem ''', recipientProviders: [contributor(), developers(), buildUser()], subject: 'Build finished', to: 'developers'
+}
+}
+}
+
